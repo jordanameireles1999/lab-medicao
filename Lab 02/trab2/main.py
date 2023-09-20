@@ -2,9 +2,10 @@ import requests
 import csv
 import time
 from datetime import datetime
+import os  # Importe o módulo os para verificar se o arquivo já existe
 
 # Configuração
-TOKEN = "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"
+TOKEN = "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"
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}",
     "Content-Type": "application/json"
@@ -53,9 +54,16 @@ def calculate_age(created_at):
 # Função para exportar dados para CSV
 def export_to_csv(repositories):
     csv_file_path = "repositories.csv"
-    with open(csv_file_path, "a", newline="", encoding="utf-8") as csvfile:  # Use 'a' para adicionar ao arquivo, não substituir
+    # Verifique se o arquivo já existe
+    file_exists = os.path.exists(csv_file_path)
+
+    with open(csv_file_path, "a", newline="", encoding="utf-8") as csvfile:
         fieldnames = ["Repository", "URL", "Owner", "Stars", "Primary Language", "LOC", "Comments", "Releases", "Age (years)"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
+
+        # Se o arquivo não existir, escreva o cabeçalho
+        if not file_exists:
+            writer.writeheader()
 
         for repo in repositories:
             owner, name = repo["node"]["nameWithOwner"].split("/")
@@ -100,10 +108,3 @@ for _ in range(10):  # 10 iterações para buscar 1000 registros (100 por itera�
         break
 
 print("Lista de repositórios Java exportada para 'repositories.csv'.")
-
-#ler o csv
-#clonar o repo
-#rodar jar CK
-#salvar os dados (escreve no csv)
-#apaga o repo 
-
