@@ -1,8 +1,10 @@
 import requests
 import csv
+import time
+import numpy as np  # Importa a biblioteca numpy para cálculos estatísticos
 
 # Seu token de acesso pessoal do GitHub
-token = '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'
+token = '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'
 headers = {
     'Authorization': f'token {token}',
     'Content-Type': 'application/json'
@@ -61,22 +63,30 @@ query ($cursor: String) {
 }
 """
 
-cursor = None  # Inicialmente, não há cursor
+cursor = None
 formatted_data = []
+request_times = []  # Lista para armazenar os tempos de cada requisição
 
-for page_number in range(3):  # Faz três consultas para obter até 30 repositórios
+while True:  # Loop até que o desvio padrão esteja próximo de 1
+    start_time = time.time()  # Início da requisição
     response = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': {'cursor': cursor}}, headers=headers)
+    end_time = time.time()  # Fim da requisição
+
+    request_time = end_time - start_time
+    request_times.append(request_time)
+
     json_data = response.json()
 
     if 'errors' in json_data:
         print(f"Erro na resposta da API: {json_data['errors']}")
         break
+    elif 'data' not in json_data:
+        print(f"Resposta inesperada da API: {json_data}")
+        break
 
     repositories_data = json_data['data']['search']['edges']
-    
     for repo in repositories_data:
         repo_node = repo['node']
-        # Verifique se primaryLanguage não é None antes de tentar acessar 'name'
         primary_language = repo_node.get('primaryLanguage')
         primary_language_name = primary_language.get('name', None) if primary_language else None
 
@@ -103,6 +113,15 @@ for page_number in range(3):  # Faz três consultas para obter até 30 repositó
     if not json_data['data']['search']['pageInfo']['hasNextPage']:
         break
 
+    # Cálculo de média e desvio padrão após cada requisição
+    if len(request_times) > 1:  # Calcula se houver mais de uma medição
+        mean = np.mean(request_times)
+        std_dev = np.std(request_times)
+        print(f"Média atual: {mean}, Desvio Padrão atual: {std_dev}")
+
+        if abs(std_dev - 1) < 0.1:  # Condição de parada: desvio padrão próximo de 1
+            break
+          
 # Escrevendo os dados coletados em um arquivo CSV
 fieldnames = ['name', 'description', 'url', 'primaryLanguage', 'createdAt', 'updatedAt', 'stargazers', 'forks', 'watchers', 'issues', 'pullRequests', 'releases', 'branches', 'tags', 'commitComments']
 
@@ -113,3 +132,13 @@ with open('github_repositories.csv', 'w', newline='', encoding='utf-8') as csvfi
         writer.writerow(data)
 
 print(f"Total de repositórios processados: {len(formatted_data)}")
+print(f"Tempo médio das requisições: {mean} segundos")
+print(f"Desvio padrão do tempo das requisições: {std_dev} segundos")
+
+# Contando o número de caracteres no arquivo CSV
+total_characters = 0
+with open('github_repositories.csv', 'r', encoding='utf-8') as file:
+    for line in file:
+        total_characters += len(line)
+
+print(f"Total de caracteres no arquivo CSV: {total_characters}")
